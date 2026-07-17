@@ -1,0 +1,32 @@
+# Secrets / local config
+.env
+.env.local
+*.key
+*.secret
+*.pem
+
+# Your real asset database (keep private data out of the repo).
+# The bundled asset-db.sample.md is the only DB that belongs here.
+asset-db.md
+asset-db.local.md
+
+# macOS / Editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+venv/
+.venv/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

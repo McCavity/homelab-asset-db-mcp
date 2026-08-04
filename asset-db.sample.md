@@ -58,6 +58,16 @@ and carries no device table, so the parser yields nothing for it.
 | Thermostat | 10.10.30.71 | Smart Home | Smart Thermostat | Bedroom |
 | Bird Feeder Cam | 10.10.30.72 | Smart Home | Wi-Fi Camera | Garden |
 
+## Personal Devices
+
+> Phones, tablets and laptops. Track them by their static private MAC, not by
+> the DHCP lease — the lease moves, the identifier should not.
+
+| Name | IP | VLAN | Type | Notes |
+|---|---|---|---|---|
+| Owner Phone | 10.10.128.20 | Unrestricted | Phone | static private MAC `02:00:5e:10:00:01` |
+| Owner Laptop | 10.10.128.21 | Unrestricted | Laptop | static private MAC `02:00:5e:10:00:02` |
+
 ## Local Services (macOS)
 
 > LaunchAgents bound to `127.0.0.1` — not reachable from the LAN. Listed here

@@ -85,6 +85,8 @@ CATEGORY_MAP: dict[str, str] = {
     "Büro / Arbeitsplatz": "Büro",
     "Office / Workspace": "Office",
     "Smart Home / IoT": "SmartHome",
+    "Personal Devices / Apple": "Personal",
+    "Personal Devices": "Personal",
     "Lokale Dienste (macOS)": "LocalService",
     "Local Services (macOS)": "LocalService",
     "Unterhaltung": "Entertainment",

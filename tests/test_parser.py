@@ -36,9 +36,9 @@ class ParseSampleTests(unittest.TestCase):
 
     def test_sample_parses_to_devices(self) -> None:
         # 3 servers + 3 LXC + 2 Pis + 2 office + 3 smarthome + 2 entertainment
-        # + 2 local services + 1 unknown = 18; Naming Scheme and the Network
-        # pointer add nothing.
-        self.assertEqual(len(self.devices), 18)
+        # + 2 personal + 2 local services + 1 unknown = 20; Naming Scheme and
+        # the Network pointer add nothing.
+        self.assertEqual(len(self.devices), 20)
 
     def test_naming_scheme_section_skipped(self) -> None:
         for d in self.devices:
@@ -56,7 +56,7 @@ class ParseSampleTests(unittest.TestCase):
         self.assertEqual(
             cats,
             {"Server", "LXC", "RasPi", "Office", "SmartHome",
-             "Entertainment", "LocalService", "Unknown"},
+             "Entertainment", "Personal", "LocalService", "Unknown"},
         )
 
     def test_em_dash_normalized_to_absent(self) -> None:
@@ -105,6 +105,12 @@ class ToolTests(unittest.TestCase):
         res = json.loads(list_devices_by_category("localservice"))
         self.assertEqual(res["count"], 2)
 
+    def test_personal_devices_are_devices_not_prose(self) -> None:
+        # Phones and laptops were skipped for the same reason local services
+        # were: their heading was simply absent from CATEGORY_MAP.
+        res = json.loads(list_devices_by_category("personal"))
+        self.assertEqual(res["count"], 2)
+
 
 class GermanProductionCompatTests(unittest.TestCase):
     """A German-headed DB (the real-world shape) must still parse."""
@@ -122,6 +128,12 @@ class GermanProductionCompatTests(unittest.TestCase):
 | Name | IP | VLAN | Typ | Notizen |
 |---|---|---|---|---|
 | Drucker | 10.0.40.5 | Work | Brother | Duplex |
+
+## Personal Devices / Apple
+
+| Name | IP | VLAN | Typ | Notizen |
+|---|---|---|---|---|
+| Ein Telefon | 10.0.128.7 | Unrestricted | iPhone | statische private MAC |
 
 ## Lokale Dienste (macOS)
 
@@ -149,9 +161,9 @@ class GermanProductionCompatTests(unittest.TestCase):
 
     def test_german_headers_parse(self) -> None:
         devices = parse_asset_db(self.path)
-        self.assertEqual(len(devices), 4)
+        self.assertEqual(len(devices), 5)
         cats = {d["_category"] for d in devices}
-        self.assertEqual(cats, {"Server", "Büro", "LocalService", "Unknown"})
+        self.assertEqual(cats, {"Server", "Büro", "Personal", "LocalService", "Unknown"})
 
     def test_german_lookup_field(self) -> None:
         devices = parse_asset_db(self.path)

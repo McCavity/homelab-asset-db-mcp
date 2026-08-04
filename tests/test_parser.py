@@ -36,8 +36,9 @@ class ParseSampleTests(unittest.TestCase):
 
     def test_sample_parses_to_devices(self) -> None:
         # 3 servers + 3 LXC + 2 Pis + 2 office + 3 smarthome + 2 entertainment
-        # + 1 unknown = 16; Naming Scheme and the Network pointer add nothing.
-        self.assertEqual(len(self.devices), 16)
+        # + 2 local services + 1 unknown = 18; Naming Scheme and the Network
+        # pointer add nothing.
+        self.assertEqual(len(self.devices), 18)
 
     def test_naming_scheme_section_skipped(self) -> None:
         for d in self.devices:
@@ -55,7 +56,7 @@ class ParseSampleTests(unittest.TestCase):
         self.assertEqual(
             cats,
             {"Server", "LXC", "RasPi", "Office", "SmartHome",
-             "Entertainment", "Unknown"},
+             "Entertainment", "LocalService", "Unknown"},
         )
 
     def test_em_dash_normalized_to_absent(self) -> None:
@@ -98,6 +99,12 @@ class ToolTests(unittest.TestCase):
         res = json.loads(list_devices_by_category("raspi"))
         self.assertEqual(res["count"], 2)
 
+    def test_local_services_are_devices_not_prose(self) -> None:
+        # A loopback-bound LaunchAgent is an asset like any other. Before this
+        # category existed the section parsed to nothing at all -- silently.
+        res = json.loads(list_devices_by_category("localservice"))
+        self.assertEqual(res["count"], 2)
+
 
 class GermanProductionCompatTests(unittest.TestCase):
     """A German-headed DB (the real-world shape) must still parse."""
@@ -115,6 +122,12 @@ class GermanProductionCompatTests(unittest.TestCase):
 | Name | IP | VLAN | Typ | Notizen |
 |---|---|---|---|---|
 | Drucker | 10.0.40.5 | Work | Brother | Duplex |
+
+## Lokale Dienste (macOS)
+
+| Name | IP | VLAN | Hostname | Typ | Notizen |
+|---|---|---|---|---|---|
+| Mini-Dienst | 127.0.0.1:8799 | lokal | — | LaunchAgent | nur loopback |
 
 ## Klärungsbedarf
 
@@ -136,9 +149,9 @@ class GermanProductionCompatTests(unittest.TestCase):
 
     def test_german_headers_parse(self) -> None:
         devices = parse_asset_db(self.path)
-        self.assertEqual(len(devices), 3)
+        self.assertEqual(len(devices), 4)
         cats = {d["_category"] for d in devices}
-        self.assertEqual(cats, {"Server", "Büro", "Unknown"})
+        self.assertEqual(cats, {"Server", "Büro", "LocalService", "Unknown"})
 
     def test_german_lookup_field(self) -> None:
         devices = parse_asset_db(self.path)

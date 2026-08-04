@@ -58,6 +58,16 @@ and carries no device table, so the parser yields nothing for it.
 | Thermostat | 10.10.30.71 | Smart Home | Smart Thermostat | Bedroom |
 | Bird Feeder Cam | 10.10.30.72 | Smart Home | Wi-Fi Camera | Garden |
 
+## Local Services (macOS)
+
+> LaunchAgents bound to `127.0.0.1` — not reachable from the LAN. Listed here
+> because an unlisted local service is one nobody remembers running.
+
+| Name | IP | VLAN | Hostname | Type | Notes |
+|---|---|---|---|---|---|
+| Metrics Console | 127.0.0.1:8765 | local | — | LaunchAgent | Label `com.example.metrics`; loopback only |
+| Notes Dashboard | 127.0.0.1:8766 | local | — | LaunchAgent | Label `com.example.notes`; loopback only |
+
 ## Entertainment
 
 | Name | IP | VLAN | Type | Room |

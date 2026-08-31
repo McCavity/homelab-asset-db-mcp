@@ -127,6 +127,71 @@ def _normalize_value(value: str) -> str | None:
     return v
 
 
+def _looks_like_device_table(headers: list[str]) -> bool:
+    """True if a table header carries an address column.
+
+    Anchored on **content**, not on the heading text: every device table in
+    this format has an IP column ("IP", "IP Adresse", "IP (DHCP, last)"),
+    while documentation tables (naming scheme, conventions) do not. That is
+    what keeps the unknown-section warning below free of false positives —
+    a rule that needed an exception list would be the wrong rule.
+    """
+    return any(h.strip().lower().startswith("ip") for h in headers)
+
+
+def scan_asset_db(path: Path = ASSET_DB_PATH) -> tuple[list[dict], list[str]]:
+    """Parse the asset DB and report sections that were silently skipped.
+
+    Returns `(devices, warnings)`. A warning is raised for every `##` heading
+    that is **not** in CATEGORY_MAP but carries a device-like table — the
+    exact failure mode that hid the LocalService, Personal and Docker
+    sections, each time unnoticed until somebody missed an entry.
+    """
+    devices = parse_asset_db(path)
+    warnings: list[str] = []
+
+    if not path.exists():
+        return devices, warnings
+
+    current_section: str | None = None
+    current_headers: list[str] | None = None
+    reported: set[str] = set()
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.rstrip()
+
+        m_sec = _SECTION_RE.match(line)
+        if m_sec:
+            current_section = m_sec.group("title").strip()
+            current_headers = None
+            continue
+
+        if _TABLE_SEP_RE.match(line):
+            continue
+
+        if line.startswith("|"):
+            if current_headers is None:
+                current_headers = _split_row(line)
+                if (
+                    current_section
+                    and current_section not in CATEGORY_MAP
+                    and current_section not in reported
+                    and _looks_like_device_table(current_headers)
+                ):
+                    reported.add(current_section)
+                    warnings.append(
+                        f"Section '{current_section}' carries a device table but is "
+                        f"not in CATEGORY_MAP — its rows are invisible to every "
+                        f"tool. Add the heading to CATEGORY_MAP in server.py."
+                    )
+            continue
+
+        if not line:
+            current_headers = None
+
+    return devices, warnings
+
+
 def parse_asset_db(path: Path = ASSET_DB_PATH) -> list[dict]:
     """Parse the asset DB into a list of dicts.
 
@@ -255,14 +320,13 @@ def find_device(query: str) -> str:
     if not query.strip():
         return json.dumps({"error": "Empty search query."})
 
-    devices = parse_asset_db()
+    devices, warnings = scan_asset_db()
     hits = [_record_summary(d) for d in devices if _matches(d, query)]
 
-    return json.dumps({
-        "query": query,
-        "count": len(hits),
-        "results": hits,
-    }, ensure_ascii=False, indent=2)
+    payload: dict = {"query": query, "count": len(hits), "results": hits}
+    if warnings:
+        payload["warnings"] = warnings
+    return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -282,14 +346,18 @@ def get_device(name_or_hostname: str) -> str:
     if not name_or_hostname.strip():
         return json.dumps({"error": "Empty lookup key."})
 
-    devices = parse_asset_db()
+    devices, warnings = scan_asset_db()
     for d in devices:
         if _exact_name_match(d, name_or_hostname):
-            return json.dumps(_record_summary(d), ensure_ascii=False, indent=2)
+            record = _record_summary(d)
+            if warnings:
+                record["warnings"] = warnings
+            return json.dumps(record, ensure_ascii=False, indent=2)
 
     return json.dumps({
         "error": f"No device with hostname/name/device '{name_or_hostname}' found.",
         "hint": "Try find_device() for a substring search.",
+        **({"warnings": warnings} if warnings else {}),
     }, ensure_ascii=False)
 
 
@@ -310,7 +378,7 @@ def list_devices_by_vlan(vlan: str) -> str:
     if not vlan.strip():
         return json.dumps({"error": "Empty VLAN filter."})
 
-    devices = parse_asset_db()
+    devices, warnings = scan_asset_db()
     q = vlan.lower()
     hits = [
         _record_summary(d)
@@ -318,11 +386,10 @@ def list_devices_by_vlan(vlan: str) -> str:
         if d.get("VLAN") and q in d["VLAN"].lower()
     ]
 
-    return json.dumps({
-        "vlan": vlan,
-        "count": len(hits),
-        "results": hits,
-    }, ensure_ascii=False, indent=2)
+    payload: dict = {"vlan": vlan, "count": len(hits), "results": hits}
+    if warnings:
+        payload["warnings"] = warnings
+    return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -344,7 +411,7 @@ def list_devices_by_category(category: str) -> str:
             "valid_categories": sorted(set(CATEGORY_MAP.values())),
         })
 
-    devices = parse_asset_db()
+    devices, warnings = scan_asset_db()
     q = category.lower()
     hits = [
         _record_summary(d)
@@ -352,11 +419,10 @@ def list_devices_by_category(category: str) -> str:
         if d.get("_category") and q in d["_category"].lower()
     ]
 
-    return json.dumps({
-        "category": category,
-        "count": len(hits),
-        "results": hits,
-    }, ensure_ascii=False, indent=2)
+    payload: dict = {"category": category, "count": len(hits), "results": hits}
+    if warnings:
+        payload["warnings"] = warnings
+    return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
 # ---------------------------------------------------------------------------

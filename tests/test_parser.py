@@ -19,7 +19,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import server  # noqa: E402
-from server import (  # noqa: E402
+from server import (
+    scan_asset_db,  # noqa: E402
     parse_asset_db,
     find_device,
     get_device,
@@ -184,6 +185,78 @@ class GermanProductionCompatTests(unittest.TestCase):
         devices = parse_asset_db(self.path)
         printer = next(d for d in devices if d["_category"] == "Büro")
         self.assertEqual(printer["Name"], "Drucker")
+
+
+class UnknownSectionWarningTests(unittest.TestCase):
+    """The silent skip is the bug; the warning is the fix.
+
+    Three times a section was invisible because its heading was missing from
+    CATEGORY_MAP (LocalService, Personal, Docker). Nothing complained — only
+    a person noticing an absent entry. These tests pin the warning down and,
+    just as importantly, pin down when it must stay quiet.
+    """
+
+    WITH_UNKNOWN = """# Asset-DB
+
+## Naming Scheme
+
+| Field | Values | Meaning |
+|---|---|---|
+| prefix | srv, pi | device class |
+
+## Server & Infrastructure
+
+| Name | IP | VLAN | Hostname | Type | Notes |
+|---|---|---|---|---|---|
+| Server One | 10.0.0.1 | HomeLab | srv01 | Proxmox | primary |
+
+## Kaffeemaschinen
+
+| Name | IP | VLAN | Hostname | Type |
+|---|---|---|---|---|
+| Küche | 10.0.30.9 | Smart Home | brewbot | Espresso |
+"""
+
+    def _write(self, text: str) -> Path:
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        path = Path(tmp.name)
+        self.addCleanup(path.unlink, True)
+        return path
+
+    def test_unknown_device_section_warns(self) -> None:
+        devices, warnings = scan_asset_db(self._write(self.WITH_UNKNOWN))
+        # The coffee machine is invisible — that is the defect being reported.
+        self.assertEqual(len(devices), 1)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("Kaffeemaschinen", warnings[0])
+        self.assertIn("CATEGORY_MAP", warnings[0])
+
+    def test_documentation_table_stays_quiet(self) -> None:
+        # "Naming Scheme" is unknown to CATEGORY_MAP *on purpose* and also has
+        # a table. Warning on it would make the whole feature noise. The rule
+        # is anchored on content (an IP column), not on a list of exceptions.
+        _, warnings = scan_asset_db(self._write(self.WITH_UNKNOWN))
+        self.assertFalse(any("Naming Scheme" in w for w in warnings))
+
+    def test_clean_sample_has_no_warnings(self) -> None:
+        _, warnings = scan_asset_db(SAMPLE)
+        self.assertEqual(warnings, [])
+
+    def test_each_section_reported_once(self) -> None:
+        doubled = self.WITH_UNKNOWN + """
+| Bad | 10.0.30.10 | Smart Home | brewbot2 | Espresso |
+"""
+        _, warnings = scan_asset_db(self._write(doubled))
+        self.assertEqual(len(warnings), 1)
+
+    def test_missing_file_yields_no_warnings(self) -> None:
+        devices, warnings = scan_asset_db(Path("/nonexistent/asset-db.md"))
+        self.assertEqual(devices, [])
+        self.assertEqual(warnings, [])
 
 
 class MissingFileTests(unittest.TestCase):

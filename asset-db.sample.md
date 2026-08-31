@@ -31,6 +31,16 @@ This section is documentation, not devices — the server ignores it because
 | Paperless | 10.10.10.32 | HomeLab | paperless01 | Paperless-ngx |
 | Reverse Proxy | 10.10.10.33 | HomeLab | proxy01 | Caddy |
 
+## Docker Services
+
+Containers on a Docker host. The IP is the host's; the port distinguishes the
+service, so the URL column carries it — a DNS alias alone cannot.
+
+| Name | IP | VLAN | Hostname | Type | Services / URL |
+|---|---|---|---|---|---|
+| Dashboard | 10.10.10.33 | HomeLab | dashboard | Container on `proxy01` | http://dashboard.example:5001 |
+| Wiki | 10.10.10.33 | HomeLab | wiki | Container on `proxy01` | http://wiki.example:8080 |
+
 ## Raspberry Pis
 
 | Name | IP | VLAN | Hostname | Function | Hardware | Services / URL |

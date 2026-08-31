@@ -35,10 +35,10 @@ class ParseSampleTests(unittest.TestCase):
         self.devices = parse_asset_db(SAMPLE)
 
     def test_sample_parses_to_devices(self) -> None:
-        # 3 servers + 3 LXC + 2 Pis + 2 office + 3 smarthome + 2 entertainment
-        # + 2 personal + 2 local services + 1 unknown = 20; Naming Scheme and
-        # the Network pointer add nothing.
-        self.assertEqual(len(self.devices), 20)
+        # 3 servers + 3 LXC + 2 docker + 2 Pis + 2 office + 3 smarthome
+        # + 2 entertainment + 2 personal + 2 local services + 1 unknown = 22;
+        # Naming Scheme and the Network pointer add nothing.
+        self.assertEqual(len(self.devices), 22)
 
     def test_naming_scheme_section_skipped(self) -> None:
         for d in self.devices:
@@ -55,9 +55,24 @@ class ParseSampleTests(unittest.TestCase):
         cats = {d["_category"] for d in self.devices}
         self.assertEqual(
             cats,
-            {"Server", "LXC", "RasPi", "Office", "SmartHome",
+            {"Server", "LXC", "Docker", "RasPi", "Office", "SmartHome",
              "Entertainment", "Personal", "LocalService", "Unknown"},
         )
+
+    def test_docker_services_are_devices_not_prose(self) -> None:
+        # Third time this bug class appears: a section was invisible because
+        # its heading was simply absent from CATEGORY_MAP. The parser skips
+        # unknown headings silently, so only a test catches it.
+        docker = [d for d in self.devices if d["_category"] == "Docker"]
+        self.assertEqual(len(docker), 2)
+        self.assertEqual(
+            {d["Hostname"] for d in docker}, {"dashboard", "wiki"}
+        )
+
+    def test_docker_url_keeps_its_port(self) -> None:
+        # A CNAME resolves the name but carries no port — the URL column must.
+        wiki = next(d for d in self.devices if d.get("Hostname") == "wiki")
+        self.assertTrue(wiki["Services / URL"].endswith(":8080"))
 
     def test_em_dash_normalized_to_absent(self) -> None:
         # Sensor Pi's "Services / URL" is "—" -> dropped in the summary.

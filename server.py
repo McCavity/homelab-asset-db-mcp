@@ -87,6 +87,8 @@ CATEGORY_MAP: dict[str, str] = {
     "Smart Home / IoT": "SmartHome",
     "Personal Devices / Apple": "Personal",
     "Personal Devices": "Personal",
+    "Docker-Dienste": "Docker",
+    "Docker Services": "Docker",
     "Lokale Dienste (macOS)": "LocalService",
     "Local Services (macOS)": "LocalService",
     "Unterhaltung": "Entertainment",
